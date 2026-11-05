@@ -1,0 +1,16 @@
+import{sellable,status,value,soon,expiredQty,dailyRate,reorder,daysLeft,nextBatch}from'../store/selectors';import{expired,today}from'./expiry';import{money,date}from'./format';
+export const suggestions=['What is expiring this week?','Which items are low?','Top 5 fast-moving items','What should I restock?','What is my stock value?'];
+export function answer(input,s){const q=input.toLowerCase().replace(/[^a-z0-9 ]/g,' ').replace(/\s+/g,' ').trim();const lines=ps=>ps.slice(0,7).map(p=>`${p.name}: ${sellable(s,p.id)} ${p.unit}, ${status(s,p)}`).join('\n');
+if(/fifo|lifo|method/.test(q))return `${s.method} is selected. FIFO sells the oldest received batch first, which helps keep food from expiring on the shelf; LIFO sells the newest received batch first.`;
+if(/expired|spoiled|wastage/.test(q)){const bs=s.batches.filter(b=>expired(b)&&b.remaining);return `Expired stock: ${bs.reduce((n,b)=>n+b.remaining,0)} units, ${money(bs.reduce((n,b)=>n+b.remaining*b.unitCost,0))}.\nWrite it off through Adjustments; expired batches are never dispatched.`;}
+if(/expir|kya expire/.test(q))return soon(s).slice(0,7).map(b=>`${s.products.find(p=>p.id===b.productId)?.name} · ${b.id}: ${b.remaining}, expires ${date(b.expiryDate)}`).join('\n')||'No batches expire this week.';
+if(/low|kam|kum/.test(q))return lines(s.products.filter(p=>status(s,p)==='Low'))||'No items are low.';
+if(/out of stock|khatam/.test(q))return lines(s.products.filter(p=>status(s,p)==='Out'))||'No items are out of stock.';
+if(/restock|reorder|mangwa|mangwa|dobara/.test(q))return s.products.map(p=>({p,n:reorder(s,p)})).filter(x=>x.n>0).sort((a,b)=>b.n-a.n).slice(0,7).map(x=>`${x.p.name}: reorder ${x.n} ${x.p.unit}`).join('\n')||'No reorder is suggested.';
+if(/value|worth/.test(q))return [...s.categories.slice(0,7).map(c=>`${c}: ${money(s.products.filter(p=>p.category===c).reduce((n,p)=>n+value(s,p.id),0))}`),`Total: ${money(value(s))} (expired stock included)`].join('\n');
+if(/fast|slow|moving/.test(q)){const fast=!q.includes('slow');return s.products.slice().sort((a,b)=>(dailyRate(s,b.id)-dailyRate(s,a.id))*(fast?1:-1)).slice(0,5).map(p=>`${p.name}: ${Math.round(dailyRate(s,p.id)*30)} units dispatched in 30 days`).join('\n');}
+const p=s.products.find(p=>q.includes(p.sku.toLowerCase().replace(/[^a-z0-9 ]/g,' '))||q.includes(p.name.toLowerCase().replace(/[^a-z0-9 ]/g,' ')));if(p){const b=nextBatch(s,p.id),d=daysLeft(s,p.id);return `${p.name}: ${sellable(s,p.id)} ${p.unit}, ${status(s,p)}.\nNext batch: ${b?b.id+' · expires '+date(b.expiryDate):'None'}.\n${d===null?'No recent sales rate.':d===0?'Less than 1 day remaining.':d+' days left.'}`;}
+if(/today.*movement|movement.*today|aaj/.test(q)){const ms=s.movements.filter(m=>m.datetime.startsWith(today()));return `Today: ${ms.filter(m=>m.type==='IN').reduce((n,m)=>n+m.qty,0)} units in; ${ms.filter(m=>m.type==='OUT').reduce((n,m)=>n+m.qty,0)} units out.`;}
+if(/stock|left today|kitna/.test(q))return `Total sellable stock: ${s.products.reduce((n,p)=>n+sellable(s,p.id),0)} units across ${s.products.length} products.\nExpired: ${s.products.reduce((n,p)=>n+expiredQty(s,p.id),0)} units.\n${s.products.filter(p=>status(s,p)==='Low').length} low; ${s.products.filter(p=>status(s,p)==='Out').length} out.`;
+return 'I can answer questions about your stock levels, expiry, alerts and movements. Try one of the suggestions below.';
+}
