@@ -8,10 +8,11 @@ import {
     expiredQty,
     nextBatch,
     sellable,
+    soonQty,
     status,
     value,
 } from '../store/selectors';
-import { date, datetime, money } from '../lib/format';
+import { date, datetime, inDays, money } from '../lib/format';
 import { days, expired, today } from '../lib/expiry';
 import { exportCSV } from '../lib/csv';
 import {
@@ -20,8 +21,11 @@ import {
     Empty,
     Field,
     IntegerInput,
+    MoneyInput,
     Modal,
+    QtyInput,
 } from '../components/UI';
+import { allowsDecimal, qtyMessage, toMajor, toMinor, validMoney, validQty } from '../lib/qty';
 import { UNITS } from '../data/products';
 import { clone, move } from '../store/reducer';
 
@@ -148,8 +152,8 @@ export default function Inventory() {
                     unit: item.unit,
                     qty: sellable(s, item.id),
                     min_stock: item.min,
-                    price: item.price,
-                    stock_value: value(s, item.id),
+                    price: toMajor(item.price),
+                    stock_value: toMajor(value(s, item.id)),
                 })),
             `WMS-inventory-${today()}.csv`,
         );
@@ -224,8 +228,6 @@ export default function Inventory() {
                         <option key={option}>{option}</option>
                     ))}
                 </select>
-
-                <Badge>Method: {s.method}</Badge>
 
                 <button
                     title={admin ? 'Add product' : 'Admin only'}
@@ -465,6 +467,7 @@ export default function Inventory() {
                                                 {column === 'Status' ? (
                                                     <>
                                                         <Badge>{status(s, item)}</Badge>
+                                                        {soonQty(s, item.id) > 0 && <Badge>Expiring</Badge>}
                                                         {expiredQty(s, item.id) > 0 && (
                                                             <Badge>
                                                                 Expired:{' '}
@@ -483,7 +486,7 @@ export default function Inventory() {
                                                                         : ''
                                                                 }
                                                             >
-                                                                in {days(next.expiryDate)} days
+                                                                {inDays(days(next.expiryDate))}
                                                             </small>
                                                         </>
                                                     ) : (
@@ -711,7 +714,7 @@ function ProductForm({ product, onClose }) {
     const [error, setError] = useState('');
     const [busy, setBusy] = useState(false);
     const [f, setF] = useState(
-        product || {
+        product ? { ...product, price: toMajor(product.price) } : {
             name: '',
             sku: '',
             category: s.categories[0],
@@ -748,15 +751,21 @@ function ProductForm({ product, onClose }) {
             throw new Error('SKU already exists. Stock In instead?');
         }
 
-        const numericFields = [
-            'min',
-            'price',
-            ...(!product && step >= 2 ? ['qty', 'unitCost'] : []),
-        ];
+        if (!Number.isInteger(Number(f.min)) || Number(f.min) < 1) {
+            throw new Error('Minimum stock must be a whole number');
+        }
 
-        for (const key of numericFields) {
-            if (!Number.isInteger(Number(f[key])) || Number(f[key]) < 1) {
-                throw new Error('Whole numbers only');
+        if (!validMoney(f.price)) {
+            throw new Error('Enter the price, for example 4.49');
+        }
+
+        if (!product && step >= 2) {
+            if (!validQty(Number(f.qty), f.unit)) {
+                throw new Error(qtyMessage(allowsDecimal(f.unit)));
+            }
+
+            if (!validMoney(f.unitCost)) {
+                throw new Error('Enter the unit cost, for example 3.25');
             }
         }
 
@@ -798,7 +807,7 @@ function ProductForm({ product, onClose }) {
                         ...f,
                         id: product?.id || `p${Date.now()}`,
                         min: Number(f.min),
-                        price: Number(f.price),
+                        price: toMinor(f.price),
                         perishable: s.perishables.includes(f.category),
                         shelf: 30,
                     };
@@ -816,7 +825,7 @@ function ProductForm({ product, onClose }) {
                             ...f,
                             productId: nextProduct.id,
                             qty: Number(f.qty),
-                            unitCost: Number(f.unitCost),
+                            unitCost: toMinor(f.unitCost),
                             type: 'OPENING',
                         }).state;
                     }
@@ -1006,10 +1015,18 @@ function ProductForm({ product, onClose }) {
                                 label={key === 'min' ? 'Minimum stock' : 'Price'}
                                 required
                             >
-                                <IntegerInput
-                                    value={f[key]}
-                                    onChange={(event) => set(key, event.target.value)}
-                                />
+                                {key === 'price' ? (
+                                    <MoneyInput
+                                        placeholder="0.00"
+                                        value={f[key]}
+                                        onChange={(event) => set(key, event.target.value)}
+                                    />
+                                ) : (
+                                    <IntegerInput
+                                        value={f[key]}
+                                        onChange={(event) => set(key, event.target.value)}
+                                    />
+                                )}
                             </Field>
                         ))}
                     </>
@@ -1021,10 +1038,20 @@ function ProductForm({ product, onClose }) {
                                 label={key === 'qty' ? 'Opening quantity' : 'Unit cost'}
                                 required
                             >
-                                <IntegerInput
-                                    value={f[key]}
-                                    onChange={(event) => set(key, event.target.value)}
-                                />
+                                {key === 'qty' ? (
+                                    <QtyInput
+                                        unit={f.unit}
+                                        placeholder={`Number of ${f.unit}`}
+                                        value={f[key]}
+                                        onChange={(event) => set(key, event.target.value)}
+                                    />
+                                ) : (
+                                    <MoneyInput
+                                        placeholder="0.00"
+                                        value={f[key]}
+                                        onChange={(event) => set(key, event.target.value)}
+                                    />
+                                )}
                             </Field>
                         ))}
 

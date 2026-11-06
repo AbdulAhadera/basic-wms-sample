@@ -2,13 +2,11 @@
 
 ## Delivery status
 
-This archive contains the React/JSX project, not a verified production build or a deployed site.
-No public live URL was created. The available Vercel connector was disconnected.
-
-Node and npm were present in the authoring sandbox. npm test passed. npm run build was attempted
-and stopped with `vite: not found`: dependencies are not installed and the sandbox has no internet
-access. JSX compilation, interactive browser behavior, camera permissions, print output and
-375px rendering remain unverified. Do not represent this delivery as acceptance-complete.
+React/JSX project. `npm install`, `npm test`, `npm run test:ui` and `npm run build` all pass in a
+network-enabled sandbox, and the main screens were checked in headless Chromium at 1600px.
+Not yet verified: a public deployment, every page at phone width (dashboard and stock-in were loaded at 390px), camera scanning and printed
+label sizes. The quote button still points at the placeholder `mailto:sales@example.com`
+(`CTA_URL` in `src/config.js`); replace it before sharing the demo.
 
 ## Install, test, build and deploy
 
@@ -50,8 +48,8 @@ browser console for errors and warnings before sharing the sales-demo link.
 
 | Email | Password | Role |
 |---|---|---|
-| admin@abc.com | demo1234 | Admin |
-| staff@abc.com | demo1234 | Staff |
+| emma@example.com | demo1234 | Admin |
+| james@example.com | demo1234 | Staff |
 
 Use buttons fill fields; they do not submit. Credentials are a demonstration gate, not security.
 There is no server, authentication service, real AI, or server-side persistence. Scanner startup
@@ -74,22 +72,23 @@ uses the browser camera only on request. The configured quote URL is a placehold
 - First-visit skeletons, empty views, React error boundary with Retry; modal focus trapping.
 - Tour, help and Advance feature modals.
 
-## Automated verification actually performed
+## Automated verification
 
-`npm test` runs without third-party packages and covers costing and model logic. The seed test
-reads ES modules and combines their pure declarations in memory; this is not a JSX/build test.
+- `npm test` (no browser): FIFO/LIFO costing, including decimal quantities for kg/lb items; and the
+  seed data loaded through Vite: counts, ledger reconciliation, money formatting, chart variety,
+  reorder suggestions, expiring-stock flags, movement rules, CSV validation and sign-in.
+- `npm run test:ui`: renders the real app in jsdom and clicks through the screens that previously
+  had bugs (prices shown in cents, reorder 0, duplicate badges, the crashing "Reset demo data" menu).
+- `npm run build`: production bundle.
 
-Verified initial seed:
-- 30 products, 7 categories, exactly 4 Low and 1 Out.
-- Expired Yogurt: 6; expired Burger Buns: 3.
-- 367 movements, including 6 adjustments and a completed count.
-- Product ledgers reconcile to batch remainders.
-- Integer quantities/costs; negative stock blocked; multi-batch dispatch; pure state updates.
-- Case-insensitive accepted Admin login and rejection of a wrong password.
-- FIFO and LIFO costs, split allocation, shortfall, expired exclusion and advisory.
+## Money and quantities
 
-All non-JSX JavaScript files passed `node --check`. No claim is made about a browser console,
-compiled bundle or third-party component runtime warnings.
+- Money is stored as whole minor units (449 = $4.49) and shown with `money()` in
+  `src/lib/format.js`. Anything a person types is an amount such as 4.49 and is converted with
+  `toMinor()` from `src/lib/qty.js`. CSV import and export use amounts (4.49), not cents.
+- Quantities are whole numbers, except items sold by `kg` or `lb`, which accept up to 2 decimals.
+- The sample data is generated relative to today's date. If the saved demo data is from an earlier
+  day it is regenerated automatically (the visitor stays signed in), so expiry dates never look stale.
 
 ## Known deviations and acceptance gaps
 
@@ -102,9 +101,8 @@ compiled bundle or third-party component runtime warnings.
 3. The supplied logo file was not attached. public/logo.png is a locally generated pine Package
    fallback, not the user's original brand asset. Replace that file with the supplied 512px logo.
    Component fallback to a Lucide Package icon is also present.
-4. Literal supplied product names retain `1.5L` for water and cola. All quantities, money, totals,
-   chart data, movement values and stock fields are integer-based. The literal names conflict
-   with the instruction that no decimal text appear anywhere; they were not silently renamed.
+4. Literal supplied product names retain `1.5L` for water and cola; they were not silently renamed.
+   Money is stored in whole cents and quantities are whole numbers (up to 2 decimals for kg/lb).
 5. These are broad source implementations, not exhaustive polished feature parity: exact 300ms
    commit loading is not applied to every smaller edit; not every page has a separately injectable
    data-error state (there is a shared error boundary with Retry); accessibility and physical label
@@ -132,7 +130,7 @@ compiled bundle or third-party component runtime warnings.
 - State is stored through StoreContext; seed/model operations are pure and serializable.
 - The local fallback icon was generated without downloading any image.
 - Stock-count increases use the latest recorded unit cost and the product shelf-life default
-  for the new batch expiry. Entering zero is not supported because the specified inputs use min=1.
+  for the new batch expiry. A counted quantity of zero is allowed.
 - Vite and its React plugin are development dependencies; only the requested runtime libraries
   appear under dependencies. No UI kit, TypeScript or Tailwind is used.
 
@@ -141,5 +139,3 @@ compiled bundle or third-party component runtime warnings.
 Source follows the requested pages, store, data, lib, styles and features organization.
 `src/config.js` contains brand/contact/demo values. `src/lib/format.js` contains presentation
 formatters. `src/lib/costing.js` contains allocation logic. `tests/` contains the executable checks.
-#   b a s i c - w m s - s a m p l e  
- 

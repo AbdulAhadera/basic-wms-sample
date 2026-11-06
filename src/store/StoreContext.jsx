@@ -1,6 +1,9 @@
-import React,{createContext,useContext,useState,useRef} from 'react';import {CONFIG} from '../config';import {seed} from '../data/seed';import {assertState,move,clone} from './reducer';
+import React,{createContext,useContext,useState,useRef} from 'react';import {CONFIG} from '../config';import {seed} from '../data/seed';import {assertState,move,clone} from './reducer';import {today} from '../lib/expiry';
 const Context=createContext();
-function read(){try{const s=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY));if(s?.version===3)return assertState(s);}catch{/* memory fallback */}return assertState(seed());}
+// All sample dates are relative to the day they were generated. If the saved demo data is
+// from an earlier day it would show stale expiries ("in 0 days", growing expired stock),
+// so start from fresh sample data but keep the visitor signed in.
+function read(){let old=null;try{old=JSON.parse(localStorage.getItem(CONFIG.STORAGE_KEY));if(old?.version===3&&old.seededOn===today())return assertState(old);}catch{/* memory fallback */}const fresh=seed();if(old?.session)fresh.session=old.session;return assertState(fresh);}
 export function StoreProvider({children}){const [state,setState]=useState(read),[toasts,setToasts]=useState([]),undoRef=useRef(null);
  function save(s){assertState(s);setState(s);try{localStorage.setItem(CONFIG.STORAGE_KEY,JSON.stringify(s));}catch{/* memory fallback */}}
  function toast(text,undo=false){const id=Date.now()+Math.random();setToasts(x=>[...x,{id,text,undo}]);setTimeout(()=>setToasts(x=>x.filter(t=>t.id!==id)),undo?8000:5000);}

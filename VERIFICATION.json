@@ -1,31 +1,16 @@
 {
   "test_status": "passed",
-  "seed": {
-    "products": 30,
-    "categories": 7,
-    "low": 4,
-    "out": 1,
-    "expired": [
-      {
-        "product": "Plain Yogurt 500g",
-        "qty": 6
-      },
-      {
-        "product": "Burger Buns (6 pcs)",
-        "qty": 3
-      }
-    ],
-    "expiringBatches": 21,
-    "movements": 367,
-    "adjustments": 6,
-    "counts": 1,
-    "ledger": "passed",
-    "movementSplit": "passed",
-    "oversell": "blocked",
-    "authentication": "passed",
-    "integerState": "passed"
+  "tests": {
+    "npm test": "passed (costing + seed/model checks loaded through Vite)",
+    "npm run test:ui": "passed (26 checks, rendered in jsdom)"
   },
-  "build_status": "blocked: dependencies unavailable; vite not found",
-  "deployed": false,
-  "browser_verified": false
+  "build_status": "passed (vite build)",
+  "browser_verified": "partial: dashboard, inventory, stock in, alerts and stock count checked in headless Chromium at 1600px; dashboard and stock in loaded at 390px with no errors",
+  "not_verified": [
+    "camera scanning",
+    "label print sizes",
+    "public deployment",
+    "every page at 390px"
+  ],
+  "deployed": false
 }

@@ -18,6 +18,7 @@
     /* Secondary: Slate */
     --slate: #85abcf;
     --slate-soft: #EDF1F4;
+    --slate-strong: #35618c;
 
     /* Warning: Muted Amber */
     --amber: #cc9941;
@@ -142,9 +143,19 @@ button.primary svg,
 
 button.stockout,
 .button.stockout {
-    background: var(--slate-soft);
-    border-color: var(--slate);
-    color: var(--slate)
+    background: var(--slate-strong);
+    border-color: var(--slate-strong);
+    color: #fff
+}
+
+button.stockout:hover,
+.button.stockout:hover {
+    background: #2a4f72
+}
+
+button.stockout svg,
+.button.stockout svg {
+    color: #fff
 }
 
 button.danger {
@@ -1005,7 +1016,9 @@ fieldset {
 .toasts {
     position: fixed;
     bottom: 22px;
-    left: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    align-items: center;
     z-index: 200;
     display: flex;
     flex-direction: column;
@@ -1068,9 +1081,39 @@ fieldset {
     right: 24px;
     bottom: 24px;
     min-height: 56px;
-    padding: 12px 18px;
+    min-width: 56px;
+    padding: 0 16px;
     border: 0;
+    border-radius: 28px;
     z-index: 55
+}
+
+.ask span {
+    display: inline-block;
+    max-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    white-space: nowrap;
+    transition: max-width 200ms ease, opacity 200ms ease, margin-left 200ms ease;
+    animation: ask-hint 6s ease 1.2s 1 both
+}
+
+.ask:hover span,
+.ask:focus-visible span {
+    max-width: 160px;
+    opacity: 1;
+    margin-left: 8px;
+    animation: none
+}
+
+@keyframes ask-hint {
+    0% { max-width: 0; opacity: 0; margin-left: 0 }
+    10%, 85% { max-width: 160px; opacity: 1; margin-left: 8px }
+    100% { max-width: 0; opacity: 0; margin-left: 0 }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ask span { animation: none }
 }
 
 .ask svg {
@@ -1565,6 +1608,8 @@ pre {
     .toasts {
         bottom: 74px;
         left: 12px;
+        transform: none;
+        align-items: stretch;
         max-width: calc(100vw - 24px)
     }
 
@@ -1690,4 +1735,20 @@ pre {
     border-radius: 4px;
     vertical-align: middle;
     margin-right: 8px
+}
+
+/* Space between the product field and the Scan SKU button on Stock In/Out */
+.form-card .scan-link {
+    margin: 4px 0 16px
+}
+
+/* Quote button in the top bar: visible on every page */
+.topbar .cta {
+    white-space: nowrap
+}
+
+@media (max-width: 1280px) {
+    .topbar .cta {
+        display: none
+    }
 }

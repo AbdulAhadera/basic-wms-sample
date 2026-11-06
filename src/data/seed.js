@@ -185,15 +185,43 @@ export function seed() {
     });
   }
 
-  function addHistoricalBatches(product, initialStock) {
-    for (let daysAgo = 29; daysAgo >= 0; daysAgo -= 6) {
+  // Splits `total` units across `days` days unevenly (but deterministically), so the
+  // dashboard chart looks like a real shop: no day gets a zero-sized movement and no
+  // unit is lost, which keeps the ledger balanced.
+  function splitAcrossDays(total, days) {
+    const weights = Array.from({ length: days }, () => 0.4 + rand());
+    const sum = weights.reduce((a, b) => a + b, 0);
+    const parts = weights.map((w) => Math.floor((total * w) / sum));
+    let left = total - parts.reduce((a, b) => a + b, 0);
+
+    for (let i = 0; left > 0; i = (i + 1) % days, left -= 1) {
+      parts[i] += 1;
+    }
+
+    return parts;
+  }
+
+  // One delivery every 6 days. Each product's delivery day is offset (0-5 days) so
+  // deliveries are spread across the week and some products are received today.
+  function addHistoricalBatches(product, initialStock, productIndex) {
+    const offset = productIndex % 6;
+
+    for (let step = 0; step < 5; step += 1) {
+      const daysAgo = 29 - offset - step * 6;
       const date = shift(currentDate, -daysAgo);
 
-      const dailyDemand =
-        DAILY_DEMAND_BY_SKU[product.sku] ||
-        Math.max(1, initialStock / 20);
+      // Each batch is sold down over the following days, never beyond today.
+      const sellingDays = Math.min(6, daysAgo + 1);
 
-      let quantity = Math.round(dailyDemand * 6);
+      // Deliveries start `offset` days into the month, so the daily rate is scaled up to
+      // keep the 30-day average equal to the intended demand. That average drives the
+      // "may run out in ~N days" chips.
+      const dailyDemand =
+        (DAILY_DEMAND_BY_SKU[product.sku] ||
+          Math.max(1, initialStock / 20)) *
+        (30 / (30 - offset));
+
+      let quantity = Math.max(1, Math.round(dailyDemand * sellingDays));
 
       const isFriday =
         new Date(`${date}T12:00:00`).getDay() === 5;
@@ -203,7 +231,7 @@ export function seed() {
       }
 
       const adjustment =
-        daysAgo === 29
+        step === 0
           ? HISTORICAL_ADJUSTMENTS_BY_SKU[product.sku]
           : undefined;
 
@@ -260,13 +288,17 @@ export function seed() {
         movement.direction = 'Decrease';
       }
 
-      addMovement(
-        product,
-        'OUT',
-        quantity,
-        getBatchBreakdown(batch, quantity),
-        date
-      );
+      splitAcrossDays(quantity, sellingDays).forEach((part, dayIndex) => {
+        if (!part) return;
+
+        addMovement(
+          product,
+          'OUT',
+          part,
+          getBatchBreakdown(batch, part),
+          shift(date, dayIndex)
+        );
+      });
     }
   }
 
@@ -303,13 +335,20 @@ export function seed() {
     const { initialStock } = PRODUCTS[index];
 
     addOpeningBatches(product, initialStock, index);
-    addHistoricalBatches(product, initialStock);
+    addHistoricalBatches(product, initialStock, index);
   });
 
   EXPIRED_BATCHES.forEach(addExpiredBatch);
 
+  // Keep the ledger in date order so "last 10 entries" and recent activity are the
+  // genuinely latest movements, not the last product that happened to be generated.
+  movements.sort((a, b) => a.datetime.localeCompare(b.datetime));
+
   return {
     version: 3,
+
+    // Day this sample data was generated for (all dates are relative to it).
+    seededOn: currentDate,
 
     products,
     batches,

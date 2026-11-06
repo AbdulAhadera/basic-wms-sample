@@ -23,7 +23,7 @@ export const CONFIG = {
   CTA_URL: 'mailto:sales@example.com',
   CONTACT_NAME: 'Sales Team',
 
-  STORAGE_KEY: `WMS:v4:${MARKET}`,
+  STORAGE_KEY: `WMS:v5:${MARKET}`,
 
   AI_DELAY_MS: 900,
   EXPIRY_SOON_DAYS: 7,
